@@ -2,6 +2,7 @@ node_modules/
 .next/
 .vercel/
 out/
+tsconfig.tsbuildinfo
 
 .DS_Store
 *.log
