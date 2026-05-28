@@ -1,0 +1,273 @@
+{
+  "meta": {
+    "board_id": "LCNA-HR-LSO-TRAIN-2026",
+    "generated_at": "2026-05-28T23:52:51.416Z",
+    "generated_by": "seed/initial",
+    "tz": "America/New_York",
+    "target_hours": 112,
+    "thresholds": {
+      "yellow": 72,
+      "orange": 96,
+      "red": 112
+    },
+    "cohort_def": "a",
+    "source": "seed",
+    "attend_source": "luckyus_opempefficiency.t_attendance (pending real pull)"
+  },
+  "kpis": {
+    "total": 22,
+    "ge72": 16,
+    "ge96": 9,
+    "ge112": 5,
+    "target_rate": 0.2273,
+    "avg": 88.1,
+    "median": 86.2
+  },
+  "regions": [
+    "—"
+  ],
+  "rows": [
+    {
+      "full_name": "Yaqing Zuo",
+      "employee_no": "US202505130005",
+      "store": "33rd & 10th",
+      "region": "—",
+      "position": "Store Manager",
+      "hire_date": "2026-02-12",
+      "hours": 168.5,
+      "band": "red",
+      "status": "Active"
+    },
+    {
+      "full_name": "Dominique Meadows",
+      "employee_no": "US202505280006",
+      "store": "100 Maiden Ln",
+      "region": "—",
+      "position": "Assistant Store Manager",
+      "hire_date": "2026-02-25",
+      "hours": 152.0,
+      "band": "red",
+      "status": "Active"
+    },
+    {
+      "full_name": "Wenny Lin",
+      "employee_no": "US202506160001",
+      "store": "52nd & Madison",
+      "region": "—",
+      "position": "Shift Supervisor",
+      "hire_date": "2026-03-03",
+      "hours": 134.2,
+      "band": "red",
+      "status": "Active"
+    },
+    {
+      "full_name": "Marcus Tate",
+      "employee_no": "US202506200008",
+      "store": "37th & Broadway",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-03-10",
+      "hours": 121.8,
+      "band": "red",
+      "status": "Active"
+    },
+    {
+      "full_name": "Aiyana Patel",
+      "employee_no": "US202507010002",
+      "store": "8th & Broadway",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-03-18",
+      "hours": 113.0,
+      "band": "red",
+      "status": "Active"
+    },
+    {
+      "full_name": "Jordan Reyes",
+      "employee_no": "US202507150004",
+      "store": "Reade & Broadway",
+      "region": "—",
+      "position": "Shift Supervisor Trainee",
+      "hire_date": "2026-03-25",
+      "hours": 108.5,
+      "band": "orange",
+      "status": "Active"
+    },
+    {
+      "full_name": "Naomi Hart",
+      "employee_no": "US202507280011",
+      "store": "108th & Broadway",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-04-02",
+      "hours": 104.0,
+      "band": "orange",
+      "status": "Active"
+    },
+    {
+      "full_name": "Liam O'Donnell",
+      "employee_no": "US202508050007",
+      "store": "Grand Central Terminal",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-04-08",
+      "hours": 99.7,
+      "band": "orange",
+      "status": "Active"
+    },
+    {
+      "full_name": "Priya Anand",
+      "employee_no": "US202508140009",
+      "store": "16th & 6th",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-04-15",
+      "hours": 96.2,
+      "band": "orange",
+      "status": "Active"
+    },
+    {
+      "full_name": "Carlos Mendoza",
+      "employee_no": "US202508110099",
+      "store": "8th & Broadway",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-04-12",
+      "hours": 94.5,
+      "band": "yellow",
+      "status": "Separated"
+    },
+    {
+      "full_name": "Diego Vargas",
+      "employee_no": "US202508220003",
+      "store": "JFK Terminal 4",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-04-20",
+      "hours": 88.4,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Sasha Kim",
+      "employee_no": "US202509030012",
+      "store": "37th & Broadway",
+      "region": "—",
+      "position": "Assistant Store Manager Trainee",
+      "hire_date": "2026-04-25",
+      "hours": 84.1,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Avery Chen",
+      "employee_no": "US202509100015",
+      "store": "100 Maiden Ln",
+      "region": "—",
+      "position": "Shift Supervisor Trainee",
+      "hire_date": "2026-04-29",
+      "hours": 80.6,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Hassan Diallo",
+      "employee_no": "US202509200013",
+      "store": "8th & Broadway",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-05-02",
+      "hours": 79.0,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Mei Ling",
+      "employee_no": "US202509220010",
+      "store": "Reade & Broadway",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-05-04",
+      "hours": 76.3,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Tobias Klein",
+      "employee_no": "US202510010014",
+      "store": "33rd & 10th",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-05-08",
+      "hours": 72.0,
+      "band": "yellow",
+      "status": "Active"
+    },
+    {
+      "full_name": "Imani Brooks",
+      "employee_no": "US202510080016",
+      "store": "108th & Broadway",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-05-10",
+      "hours": 68.9,
+      "band": "none",
+      "status": "Active"
+    },
+    {
+      "full_name": "Rafael Marín",
+      "employee_no": "US202510150018",
+      "store": "52nd & Madison",
+      "region": "—",
+      "position": "Barista",
+      "hire_date": "2026-05-13",
+      "hours": 60.5,
+      "band": "none",
+      "status": "Active"
+    },
+    {
+      "full_name": "Ezra Goldberg",
+      "employee_no": "US202510220017",
+      "store": "Grand Central Terminal",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-05-15",
+      "hours": 54.0,
+      "band": "none",
+      "status": "Active"
+    },
+    {
+      "full_name": "Yuki Tanaka",
+      "employee_no": "US202511010019",
+      "store": "16th & 6th",
+      "region": "—",
+      "position": "Shift Supervisor Trainee",
+      "hire_date": "2026-05-17",
+      "hours": 40.2,
+      "band": "none",
+      "status": "Active"
+    },
+    {
+      "full_name": "Olu Adesanya",
+      "employee_no": "US202511050021",
+      "store": "JFK Terminal 4",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-05-19",
+      "hours": 28.8,
+      "band": "none",
+      "status": "Active"
+    },
+    {
+      "full_name": "Hana Park",
+      "employee_no": "US202511100020",
+      "store": "37th & Broadway",
+      "region": "—",
+      "position": "Barista Trainee",
+      "hire_date": "2026-05-22",
+      "hours": 12.4,
+      "band": "none",
+      "status": "Active"
+    }
+  ]
+}
