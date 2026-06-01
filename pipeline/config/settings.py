@@ -44,7 +44,7 @@ COURSE_SOURCE = f"{OPEMPEFFICIENCY_DB}.t_working_time_apply"
 
 # GitHub push config — consumed by pipeline/sender/push_to_github.py.
 GITHUB_TOKEN     = os.environ.get("GITHUB_TOKEN", "")
-GITHUB_REPO      = os.environ.get("GITHUB_REPO", "xiangyuzeng/lkus-lso-train-dashboard")
+GITHUB_REPO      = os.environ.get("GITHUB_REPO", "xiangyuzeng/lkus-lso-training-progress")
 GITHUB_BRANCH    = os.environ.get("GITHUB_BRANCH", "main")
 GITHUB_FILE_PATH = os.environ.get("GITHUB_FILE_PATH", "public/data.json")
 

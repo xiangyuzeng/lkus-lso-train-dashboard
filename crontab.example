@@ -1,4 +1,8 @@
-# LSO100 train-board hourly refresh.
+# LSO train-board daily refresh (internal cron host — the no-Actions alternative).
+#
+# Use this if you'd rather not run a GitHub self-hosted runner: any internal host
+# with DB reach runs refresh.sh on a daily schedule and pushes public/data.json to
+# GitHub via the Contents API; Vercel rebuilds on the push.
 #
 # Install:
 #   crontab -e
@@ -9,13 +13,13 @@
 #   AWS_REGION=us-east-1
 #   IEHR_HOST=...                            # optional per-DB host override
 #   OPEMPEFFICIENCY_HOST=...                 # optional per-DB host override
-#   GITHUB_TOKEN=ghp_xxx                     # repo-scope PAT
-#   GITHUB_REPO=xiangyuzeng/lkus-lso-train-dashboard
+#   GITHUB_TOKEN=github_pat_xxx              # fine-grained PAT, contents:write on the repo
+#   GITHUB_REPO=xiangyuzeng/lkus-lso-training-progress
 #   GITHUB_BRANCH=main
 #   GITHUB_FILE_PATH=public/data.json
 #
-# Mode A — pymysql + Secrets Manager (PRIMARY):
-0 * * * * cd /opt/lkus-lso-train-dashboard && ./refresh.sh >> logs/cron.log 2>&1
+# Mode A — pymysql + Secrets Manager (PRIMARY). Daily 09:00 UTC:
+0 9 * * * cd /opt/lkus-lso-training-progress && ./refresh.sh >> logs/cron.log 2>&1
 
 # Mode C — Claude Code agent fallback (uncomment if Mode A is not viable):
-# 0 * * * * cd /opt/lkus-lso-train-dashboard && claude --dangerously-skip-permissions -p "$(cat refresh_prompt.md)" >> logs/cron.log 2>&1
+# 0 9 * * * cd /opt/lkus-lso-training-progress && claude --dangerously-skip-permissions -p "$(cat refresh_prompt.md)" >> logs/cron.log 2>&1

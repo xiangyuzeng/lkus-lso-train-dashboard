@@ -1,34 +1,37 @@
 name: refresh-payload
 
-# The canonical hourly refresh runs on the internal cron host (see crontab.example)
-# because the CI runner cannot reach the internal RDS. This workflow stays as
-# workflow_dispatch-only so an operator can trigger an out-of-band refresh from
-# the GitHub UI; once a self-hosted runner with VPC reach is provisioned, the
-# `schedule` block below can be enabled.
+# Daily refresh of public/data.json (collect → validate → push → Vercel rebuilds).
+#
+# IMPORTANT: this MUST run on a self-hosted runner INSIDE the VPC. A GitHub-hosted
+# runner (ubuntu-latest) lives in public cloud and cannot reach the internal RDS /
+# MCP gateway (10.238.x.x), so collect.py would fail. Register a self-hosted runner
+# labelled `luckin-internal` on a host with DB reach + AWS creds:
+#   Repo → Settings → Actions → Runners → New self-hosted runner.
 
 on:
-  workflow_dispatch:
-  # schedule:
-  #   - cron: '0 * * * *'   # hourly; ENABLE ONLY after a self-hosted runner exists
+  workflow_dispatch:            # manual "Run workflow" button (out-of-band refresh)
+  schedule:
+    - cron: '0 9 * * *'         # daily 09:00 UTC (~04:00–05:00 ET). Adjust as needed.
 
 permissions:
-  contents: write
+  contents: write               # lets the built-in GITHUB_TOKEN commit public/data.json
+
+concurrency:
+  group: refresh-payload
+  cancel-in-progress: false
 
 jobs:
   refresh:
-    # Replace with the label of the network-bridged runner (e.g. luckin-internal)
-    # once provisioned. Default `ubuntu-latest` will fail to reach the DB.
-    runs-on: [self-hosted, luckin-internal]
+    runs-on: [self-hosted, luckin-internal]   # the VPC-bridged runner label
     env:
       AWS_REGION: us-east-1
-      MYSQL_SECRET_NAME: ${{ secrets.MYSQL_SECRET_NAME }}
-      IEHR_HOST: ${{ secrets.IEHR_HOST }}
+      MYSQL_SECRET_NAME: ${{ secrets.MYSQL_SECRET_NAME }}   # e.g. collector/mysql
+      IEHR_HOST: ${{ secrets.IEHR_HOST }}                   # optional per-DB host override
       OPEMPEFFICIENCY_HOST: ${{ secrets.OPEMPEFFICIENCY_HOST }}
-      GITHUB_TOKEN: ${{ secrets.LSO_PUSH_TOKEN }}
-      GITHUB_REPO: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}             # built-in; no PAT to manage
+      GITHUB_REPO: ${{ github.repository }}                 # auto-resolves to this repo
       GITHUB_BRANCH: ${{ github.ref_name }}
       GITHUB_FILE_PATH: public/data.json
-      COHORT: a
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,7 +46,8 @@ jobs:
       - name: Install pipeline deps
         run: pip install -r pipeline/requirements.txt
 
-      - name: Run refresh
+      - name: Run refresh (collect → validate → push)
         run: bash refresh.sh
 
-      # Vercel auto-deploys on push of public/data.json — no extra step needed.
+      # Vercel auto-deploys on the public/data.json push — no extra step needed.
+      # (Optional belt-and-suspenders: curl a Vercel Deploy Hook here.)
