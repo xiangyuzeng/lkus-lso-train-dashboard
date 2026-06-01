@@ -53,20 +53,35 @@ LEVELS: list[dict[str, Any]] = [
     {"key": "LSO100", "title": "Barista", "unit": "hours", "target": 112,
      "thresholds": {"yellow": 72, "orange": 96, "red": 112}, "has_course_col": False,
      "in_training_def": "No LSO100 certification",
-     "course_sub_type": None, "course_label": None},
+     "course_sub_type": None, "course_label": None, "exclude_roles": []},
     {"key": "LSO200", "title": "Shift Supervisor", "unit": "days", "target": 45,
      "thresholds": {"yellow": 30, "orange": 35, "red": 45}, "has_course_col": True,
-     "in_training_def": "Holds LSO100, no LSO200",
-     "course_sub_type": 1, "course_label": "Course for Shift Supervisor"},
+     "in_training_def": "Holds LSO100, no LSO200; excludes current Baristas",
+     "course_sub_type": 1, "course_label": "Course for Shift Supervisor",
+     "exclude_roles": ["Barista"]},
     {"key": "LSO300", "title": "Assistant Store Manager", "unit": "days", "target": 60,
      "thresholds": {"yellow": 52, "orange": 55, "red": 60}, "has_course_col": True,
-     "in_training_def": "Holds LSO100 + LSO200, no LSO300",
-     "course_sub_type": 3, "course_label": "Course for Assistant Store Manager"},
+     "in_training_def": "Holds LSO100 + LSO200, no LSO300; excludes current Baristas / Shift Supervisors",
+     "course_sub_type": 3, "course_label": "Course for Assistant Store Manager",
+     "exclude_roles": ["Barista", "Shift Supervisor"]},
     {"key": "LSO400", "title": "Store Manager", "unit": "days", "target": 90,
      "thresholds": {"yellow": 75, "orange": 80, "red": 90}, "has_course_col": True,
-     "in_training_def": "Holds LSO100 + LSO200 + LSO300, no LSO400",
-     "course_sub_type": 2, "course_label": "Course for Store Manager"},
+     "in_training_def": "Holds LSO100 + LSO200 + LSO300, no LSO400; excludes current Baristas / Shift Supervisors / Assistant Store Managers",
+     "course_sub_type": 2, "course_label": "Course for Store Manager",
+     "exclude_roles": ["Barista", "Shift Supervisor", "Assistant Store Manager"]},
 ]
+
+# Position exclusions, applied on CURRENT post_name on top of the cert-progression
+# filter. Each excluded role also excludes its "{role} Trainee" variant (per the
+# confirmed cohort definition). "Store Manager Trainee" is never excluded.
+def _exclude_set(roles: list[str]) -> set[str]:
+    out: set[str] = set()
+    for role in roles:
+        out.add(role)
+        out.add(f"{role} Trainee")
+    return out
+
+EXCLUDE_POSITIONS: dict[str, set[str]] = {lvl["key"]: _exclude_set(lvl["exclude_roles"]) for lvl in LEVELS}
 
 # cer_id → LSO level (verified live; LSO300 includes the legacy t_ehr_certificate
 # master id so the single emp carrying it is not lost).
@@ -295,8 +310,13 @@ def build_payload() -> dict[str, Any]:
     by_level: dict[str, list[dict[str, Any]]] = {lvl["key"]: [] for lvl in LEVELS}
     for r in base:
         cohort = _assign_cohort(cert.get(str(r["emp_no"]), set()))
-        if cohort is not None:
-            by_level[cohort].append(r)
+        if cohort is None:
+            continue
+        # Position-based exclusion (drops the row from this level's cohort entirely,
+        # so total/ge_*/target_rate/avg/median all reflect it).
+        if str(r.get("post_name") or "").strip() in EXCLUDE_POSITIONS[cohort]:
+            continue
+        by_level[cohort].append(r)
 
     levels_out: list[dict[str, Any]] = []
     for lvl in LEVELS:

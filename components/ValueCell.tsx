@@ -29,7 +29,7 @@ export function ValueCell({ value, band, target, unit }: Props) {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontWeight: 600, fontSize: '14px' }}>
+        <span style={{ fontWeight: 600, fontSize: '14px', fontFamily: 'var(--font-mono)' }}>
           {value.toFixed(1)} {suffix}
         </span>
         <span style={{ fontSize: '11px', color: palette.textMuted }}>

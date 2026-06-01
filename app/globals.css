@@ -52,7 +52,9 @@
   --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-lg: 0 12px 28px rgba(6, 29, 74, 0.10), 0 4px 8px rgba(15, 23, 42, 0.04);
 
-  --font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  /* Brand type — IBM Plex (loaded via <link> in layout.tsx); mono for all numerics. */
+  --font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -60,13 +62,15 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--page);
+  /* Subtle navy-tinted wash at the top fading to the page color — atmosphere, not flat. */
+  background: linear-gradient(180deg, #E8EEF9 0%, var(--page) 360px) no-repeat var(--page);
   color: var(--text);
   font-family: var(--font-family);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "tnum" 1;
 }
 
 button {
@@ -97,4 +101,14 @@ input, select { font-family: inherit; font-size: inherit; }
   opacity: 0.45;
   filter: grayscale(60%);
   transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+/* One gentle page-load reveal (refined, not flashy). */
+@keyframes lso-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

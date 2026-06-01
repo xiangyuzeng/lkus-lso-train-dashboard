@@ -23,7 +23,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .collect import LEVELS, REPO_ROOT, _band, _kpis
+from .collect import EXCLUDE_POSITIONS, LEVELS, REPO_ROOT, _band, _kpis
 from .config.settings import ATTEND_SOURCE, CERT_SOURCE, COURSE_SOURCE, LOCAL_PAYLOAD_PATH
 
 _DATE_RE = re.compile(r"\((\d{4}-\d{2}-\d{2})")
@@ -52,8 +52,13 @@ def main(argv: list[str]) -> int:
 
     by_level: dict[str, list[dict]] = {lvl["key"]: [] for lvl in LEVELS}
     for r in roster:
-        if r["cohort"] in by_level:
-            by_level[r["cohort"]].append(r)
+        cohort = r["cohort"]
+        if cohort not in by_level:
+            continue
+        # Position-based exclusion — same rule as collect.py (single source of truth).
+        if (r.get("position") or "").strip() in EXCLUDE_POSITIONS[cohort]:
+            continue
+        by_level[cohort].append(r)
 
     levels_out = []
     for lvl in LEVELS:

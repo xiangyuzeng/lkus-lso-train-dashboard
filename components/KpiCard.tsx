@@ -57,7 +57,17 @@ export function KpiCard({ title, value, accent = 'neutral', suffix, hint }: Prop
           color: ACCENT_FG[accent],
         }}
       >
-        <span style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1 }}>{value}</span>
+        <span
+          style={{
+            fontSize: '28px',
+            fontWeight: 600,
+            lineHeight: 1,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {value}
+        </span>
         {suffix && <span style={{ fontSize: '13px', fontWeight: 500 }}>{suffix}</span>}
       </div>
       {hint && (

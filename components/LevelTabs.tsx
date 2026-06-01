@@ -61,6 +61,7 @@ export function LevelTabs({ levels, active, onSelect }: Props) {
                 color: isActive ? '#FFFFFF' : palette.textMuted,
                 fontSize: '12px',
                 fontWeight: 600,
+                fontFamily: 'var(--font-mono)',
               }}
             >
               {lvl.kpis.total}

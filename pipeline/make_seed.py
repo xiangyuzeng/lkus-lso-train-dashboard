@@ -26,11 +26,13 @@ STORES = [
 ]
 FIRST = ["Alex", "Jordan", "Sam", "Taylor", "Morgan", "Casey", "Riley", "Jamie", "Avery"]
 LAST = ["Rivera", "Chen", "Patel", "Nguyen", "Garcia", "Kim", "Okafor", "Rossi", "Haddad"]
+# Per-level seed positions — chosen to survive each level's exclusion set so the
+# seed mirrors the real post-exclusion cohorts and gives the position dropdown variety.
 POSITIONS = {
-    "LSO100": "Barista",
-    "LSO200": "Shift Supervisor",
-    "LSO300": "Assistant Store Manager",
-    "LSO400": "Store Manager Trainee",
+    "LSO100": ["Barista Trainee", "Shift Supervisor Trainee", "Assistant Store Manager Trainee", "Store Manager Trainee"],
+    "LSO200": ["Shift Supervisor Trainee", "Store Manager Trainee"],
+    "LSO300": ["Store Manager Trainee"],
+    "LSO400": ["Store Manager Trainee"],
 }
 COURSE_DATES = ["2026-01-14", "2026-02-19", "2026-03-12", "2026-04-15", "2026-05-19"]
 
@@ -65,7 +67,7 @@ def build_seed() -> dict[str, Any]:
                 "employee_no":     f"USSEED{n_global:05d}",
                 "store":           STORES[(i + n_global) % len(STORES)],
                 "region":          "—",
-                "position":        POSITIONS[lvl["key"]],
+                "position":        POSITIONS[lvl["key"]][i % len(POSITIONS[lvl["key"]])],
                 "hire_date":       f"2025-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}",
                 "value":           value,
                 "band":            _band(value, lvl["thresholds"]),

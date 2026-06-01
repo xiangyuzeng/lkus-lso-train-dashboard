@@ -20,12 +20,11 @@ type SortKey =
   | 'value'
   | 'lso_course';
 type SortDir = 'asc' | 'desc';
-type BandFilter = 'all' | 'lt_y' | 'ge_y' | 'ge_o' | 'ge_r';
+type BandFilter = 'all' | 'ge_y' | 'ge_o' | 'ge_r';
 
 function bandMatches(filter: BandFilter, row: PayloadRow, t: Level['thresholds']): boolean {
   switch (filter) {
     case 'all':  return true;
-    case 'lt_y': return row.value < t.yellow;
     case 'ge_y': return row.value >= t.yellow;
     case 'ge_o': return row.value >= t.orange;
     case 'ge_r': return row.value >= t.red;
@@ -47,17 +46,26 @@ export function TrainingTable({ level, regions }: Props) {
 
   const [search, setSearch] = useState('');
   const [bandFilter, setBandFilter] = useState<BandFilter>('all');
+  const [positionFilter, setPositionFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
+  // Band dropdown — per the level's own thresholds; "≥ X" shows rows at or above.
+  const bandLabel = unit === 'hours' ? 'Training hours' : 'Training days';
   const bandOptions: { key: BandFilter; label: string }[] = [
-    { key: 'all',  label: 'All' },
-    { key: 'lt_y', label: `< ${thresholds.yellow}${u}` },
+    { key: 'all',  label: 'In training (all)' },
     { key: 'ge_y', label: `≥ ${thresholds.yellow}${u}` },
     { key: 'ge_o', label: `≥ ${thresholds.orange}${u}` },
-    { key: 'ge_r', label: `≥ ${thresholds.red}${u}` },
+    { key: 'ge_r', label: `≥ ${thresholds.red}${u} (target)` },
   ];
+
+  // Position dropdown — drawn from the positions actually present in this level's
+  // (already cert- + position-filtered) rows.
+  const positions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.position).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'en')),
+    [rows],
+  );
 
   const hasRegions = regions.some((r) => r && r !== '—');
 
@@ -65,6 +73,7 @@ export function TrainingTable({ level, regions }: Props) {
     const q = search.trim().toLowerCase();
     const result = rows.filter((r) => {
       if (!bandMatches(bandFilter, r, thresholds)) return false;
+      if (positionFilter !== 'all' && r.position !== positionFilter) return false;
       if (hasRegions && regionFilter !== 'all' && r.region !== regionFilter) return false;
       if (q) {
         const hay =
@@ -75,7 +84,7 @@ export function TrainingTable({ level, regions }: Props) {
     });
     result.sort((a, b) => compare(a, b, sortKey, sortDir));
     return result;
-  }, [rows, search, bandFilter, regionFilter, sortKey, sortDir, thresholds, hasRegions]);
+  }, [rows, search, bandFilter, positionFilter, regionFilter, sortKey, sortDir, thresholds, hasRegions]);
 
   const onSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -106,55 +115,75 @@ export function TrainingTable({ level, regions }: Props) {
         style={{
           display: 'flex',
           flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: '12px',
+          alignItems: 'flex-end',
+          gap: '14px',
           padding: '14px 18px',
           borderBottom: `1px solid ${palette.border}`,
           background: palette.surfaceAlt,
         }}
       >
-        <input
-          type="search"
-          placeholder="Search name / ID / store / position / course"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: '1 1 260px',
-            minWidth: '220px',
-            padding: '8px 12px',
-            border: `1px solid ${palette.border}`,
-            borderRadius: radius.md,
-            background: palette.surface,
-            color: palette.text,
-            fontSize: '13px',
-          }}
-        />
-        <ChipRow>
-          {bandOptions.map((o) => (
-            <Chip
-              key={o.key}
-              active={bandFilter === o.key}
-              onClick={() => setBandFilter(o.key)}
-              label={o.label}
-            />
-          ))}
-        </ChipRow>
+        <Field label="Search" grow>
+          <input
+            type="search"
+            placeholder="Name / ID / store / position / course"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              minWidth: '200px',
+              padding: '8px 12px',
+              border: `1px solid ${palette.border}`,
+              borderRadius: radius.md,
+              background: palette.surface,
+              color: palette.text,
+              fontSize: '13px',
+            }}
+          />
+        </Field>
+
+        <Field label={bandLabel}>
+          <Select value={bandFilter} onChange={(v) => setBandFilter(v as BandFilter)}>
+            {bandOptions.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Position">
+          <Select value={positionFilter} onChange={setPositionFilter}>
+            <option value="all">All positions</option>
+            {positions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
         {hasRegions && (
-          <ChipRow>
-            <Chip active={regionFilter === 'all'} onClick={() => setRegionFilter('all')} label="Region · All" />
-            {regions
-              .filter((r) => r && r !== '—')
-              .map((r) => (
-                <Chip key={r} active={regionFilter === r} onClick={() => setRegionFilter(r)} label={r} />
-              ))}
-          </ChipRow>
+          <Field label="Region">
+            <Select value={regionFilter} onChange={setRegionFilter}>
+              <option value="all">All regions</option>
+              {regions
+                .filter((r) => r && r !== '—')
+                .map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+            </Select>
+          </Field>
         )}
+
         <span
           style={{
             marginLeft: 'auto',
             color: palette.textMuted,
             fontSize: '13px',
             whiteSpace: 'nowrap',
+            paddingBottom: '8px',
           }}
         >
           <strong style={{ color: palette.text }}>{filtered.length}</strong> / {rows.length} shown
@@ -229,28 +258,56 @@ export function TrainingTable({ level, regions }: Props) {
 
 // ────────────────────────────────────────────────────────────────────
 
-function ChipRow({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>{children}</div>;
+function Field({ label, children, grow }: { label: string; children: React.ReactNode; grow?: boolean }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: grow ? '1 1 240px' : '0 0 auto' }}>
+      <span
+        style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: palette.textMuted,
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
+  );
 }
 
-function Chip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function Select({
+  value,
+  onChange,
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       style={{
-        padding: '5px 11px',
-        borderRadius: radius.pill,
-        background: active ? palette.navy : palette.surface,
-        color: active ? '#FFFFFF' : palette.text,
-        border: `1px solid ${active ? palette.navy : palette.border}`,
-        fontSize: '12px',
-        fontWeight: 500,
-        whiteSpace: 'nowrap',
+        padding: '8px 30px 8px 12px',
+        border: `1px solid ${palette.border}`,
+        borderRadius: radius.md,
+        background: palette.surface,
+        color: palette.text,
+        fontSize: '13px',
+        cursor: 'pointer',
+        appearance: 'none',
+        backgroundImage:
+          `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>")`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'right 10px center',
+        minWidth: '150px',
       }}
     >
-      {label}
-    </button>
+      {children}
+    </select>
   );
 }
 
@@ -275,14 +332,15 @@ function Th({
         top: 0,
         left: firstColumn ? 0 : undefined,
         zIndex: firstColumn ? 3 : sticky ? 2 : undefined,
-        background: palette.surface,
-        borderBottom: `2px solid ${palette.border}`,
-        padding: '10px 14px',
+        background: '#EEF2FB',
+        borderBottom: `2px solid ${palette.borderStrong}`,
+        padding: '11px 14px',
         textAlign: align ?? 'left',
-        color: palette.textMuted,
+        color: palette.navy,
         fontWeight: 600,
-        fontSize: '12px',
-        letterSpacing: '0.02em',
+        fontSize: '11px',
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
         cursor: onClick ? 'pointer' : 'default',
         userSelect: 'none',
         whiteSpace: 'nowrap',
@@ -310,9 +368,7 @@ function Tr({
         <span style={{ fontWeight: 500 }}>{row.full_name}</span>
       </Td>
       <Td>
-        <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '12px' }}>
-          {row.employee_no}
-        </code>
+        <code style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{row.employee_no}</code>
       </Td>
       <Td>{row.store}</Td>
       <Td>
@@ -320,7 +376,7 @@ function Tr({
       </Td>
       <Td>{row.position}</Td>
       <Td>
-        <span style={{ color: palette.textMuted }}>{row.hire_date}</span>
+        <span style={{ color: palette.textMuted, fontFamily: 'var(--font-mono)' }}>{row.hire_date}</span>
       </Td>
       <Td align="right">
         <ValueCell value={row.value} band={row.band} target={target} unit={unit} />
@@ -373,7 +429,7 @@ function CourseCell({ course, date }: { course: string | null; date: string | nu
   return (
     <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
       <span>{course}</span>
-      {date && <span style={{ fontSize: '11px', color: palette.textMuted }}>{date}</span>}
+      {date && <span style={{ fontSize: '11px', color: palette.textMuted, fontFamily: 'var(--font-mono)' }}>{date}</span>}
     </div>
   );
 }

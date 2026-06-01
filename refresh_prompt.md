@@ -79,6 +79,10 @@ pushing it to GitHub. Run silently — no narration, no summary.
    ```
 
    Each result file holds the raw gateway envelope `{"rows":[{"j":"…"}], …}`.
+   `bootstrap_from_mcp` applies the position-based cohort exclusions in Python
+   (LSO200 drops current Baristas; LSO300 also Shift Supervisors; LSO400 also
+   Assistant Store Managers — each incl. its "… Trainee" variant), so the roster
+   query above needs no change — it just emits `position` and the filter does the rest.
 
 4. **Assemble + write** `public/data.json` (meta.source='confirmed'):
 
