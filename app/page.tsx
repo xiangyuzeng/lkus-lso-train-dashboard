@@ -1,21 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SeedBadge } from '@/components/SeedBadge';
+import { LevelTabs } from '@/components/LevelTabs';
 import { KpiRow } from '@/components/KpiRow';
 import { TrainingTable } from '@/components/TrainingTable';
 import { freshness } from '@/lib/freshness';
-import { palette, space } from '@/lib/tokens';
+import { palette, space, unitSuffix } from '@/lib/tokens';
 import { usePayload } from '@/lib/payload';
+import type { Level, LevelKey, PayloadMeta } from '@/lib/types';
 
 export default function Page() {
   const { status, payload, error } = usePayload();
+  const [activeKey, setActiveKey] = useState<LevelKey>('LSO100');
 
   if (status === 'loading' || !payload) {
     return (
       <main style={mainStyle}>
         <Shell>
-          <div style={{ padding: space['2xl'], color: palette.textMuted }}>加载中…</div>
+          <div style={{ padding: space['2xl'], color: palette.textMuted }}>Loading…</div>
         </Shell>
       </main>
     );
@@ -26,7 +30,7 @@ export default function Page() {
       <main style={mainStyle}>
         <Shell>
           <div style={{ padding: space['2xl'], color: palette.danger }}>
-            数据加载失败：{error ?? '未知错误'}
+            Failed to load data: {error ?? 'unknown error'}
           </div>
         </Shell>
       </main>
@@ -35,31 +39,37 @@ export default function Page() {
 
   const stale = freshness(payload.meta.generated_at).isStale;
   const isSeed = payload.meta.source === 'seed';
+  const activeLevel = payload.levels.find((l) => l.key === activeKey) ?? payload.levels[0];
+
+  if (!activeLevel) {
+    return (
+      <main style={mainStyle}>
+        <Shell>
+          <div style={{ padding: space['2xl'], color: palette.danger }}>No levels in payload.</div>
+        </Shell>
+      </main>
+    );
+  }
 
   return (
     <main style={mainStyle}>
       <div className={stale ? 'board--stale' : undefined}>
         <Shell>
-          <Header
-            generatedAt={payload.meta.generated_at}
-            isSeed={isSeed}
-            tz={payload.meta.tz}
-          />
+          <Header generatedAt={payload.meta.generated_at} isSeed={isSeed} tz={payload.meta.tz} />
 
           <section style={{ marginTop: space.xl }}>
-            <KpiRow kpis={payload.kpis} target={payload.meta.target_hours} />
+            <LevelTabs levels={payload.levels} active={activeLevel.key} onSelect={setActiveKey} />
           </section>
 
           <section style={{ marginTop: space.xl }}>
-            <TrainingTable
-              rows={payload.rows}
-              regions={payload.regions}
-              target={payload.meta.target_hours}
-              thresholds={payload.meta.thresholds}
-            />
+            <KpiRow level={activeLevel} />
           </section>
 
-          <Footnote />
+          <section style={{ marginTop: space.xl }}>
+            <TrainingTable level={activeLevel} regions={payload.meta.regions} />
+          </section>
+
+          <Footnote level={activeLevel} />
 
           <SourceLine meta={payload.meta} />
         </Shell>
@@ -109,7 +119,7 @@ function Header({ generatedAt, isSeed, tz }: { generatedAt: string; isSeed: bool
             letterSpacing: '-0.01em',
           }}
         >
-          LSO100 在训训练时长看板
+          LSO Training Progress
         </h1>
         <div
           style={{
@@ -121,7 +131,7 @@ function Header({ generatedAt, isSeed, tz }: { generatedAt: string; isSeed: bool
             fontSize: '13px',
           }}
         >
-          <span>瑞幸咖啡 · 北美 · LKUS · 报告时区 {tz}</span>
+          <span>Luckin Coffee · North America · LKUS · reporting TZ {tz}</span>
           {isSeed && <SeedBadge />}
         </div>
       </div>
@@ -130,7 +140,9 @@ function Header({ generatedAt, isSeed, tz }: { generatedAt: string; isSeed: bool
   );
 }
 
-function Footnote() {
+function Footnote({ level }: { level: Level }) {
+  const u = unitSuffix(level.unit);
+  const metric = level.unit === 'hours' ? 'hours' : 'days (hours ÷ 8)';
   return (
     <p
       style={{
@@ -140,13 +152,17 @@ function Footnote() {
         lineHeight: 1.6,
       }}
     >
-      训练时长 = 入职日期至今在考勤系统中的实际打卡上班时长累计（小时），不含排班未打卡时间。
-      阈值 72h 黄 / 96h 橘 / 112h 红（目标）。
+      Training time = cumulative actual clocked-in work {metric} from hire date to today (settled attendance,
+      excludes scheduled-but-unclocked time). {level.key} in-training = {level.in_training_def}. Heat bands:{' '}
+      ≥ {level.thresholds.yellow}{u} amber · ≥ {level.thresholds.orange}{u} orange · ≥ {level.thresholds.red}{u} red
+      (target {level.target}{u}).
+      {level.has_course_col &&
+        ' LSO Course = the training class attended for this level (from the working-hour application); shown as "pending" when no record exists.'}
     </p>
   );
 }
 
-function SourceLine({ meta }: { meta: { attend_source: string; cohort_def: string; generated_by: string } }) {
+function SourceLine({ meta }: { meta: PayloadMeta }) {
   return (
     <p
       style={{
@@ -156,7 +172,8 @@ function SourceLine({ meta }: { meta: { attend_source: string; cohort_def: strin
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
       }}
     >
-      attend_source: {meta.attend_source} · cohort_def: {meta.cohort_def} · generated_by: {meta.generated_by}
+      base: {meta.base_def} · stores: {meta.store_count} · cert: {meta.cert_source} · attendance: {meta.attend_source}{' '}
+      · course: {meta.course_source} · generated_by: {meta.generated_by}
     </p>
   );
 }

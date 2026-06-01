@@ -35,6 +35,13 @@ TENANT = os.environ.get("LUCKIN_TENANT", "LKUS")
 IEHR_DB           = "luckyus_iehr"
 OPEMPEFFICIENCY_DB = "luckyus_opempefficiency"
 
+# Logical source labels surfaced in payload meta (and in the README source table).
+# Cert acquisitions live in the qualification table joined to the Yunxuetang LMS
+# cert master — NOT t_ehr_employee_training_record, which is empty for LKUS.
+CERT_SOURCE   = f"{IEHR_DB}.t_ehr_employee_qualification_info"
+ATTEND_SOURCE = f"{OPEMPEFFICIENCY_DB}.t_attendance"
+COURSE_SOURCE = f"{OPEMPEFFICIENCY_DB}.t_working_time_apply"
+
 # GitHub push config — consumed by pipeline/sender/push_to_github.py.
 GITHUB_TOKEN     = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO      = os.environ.get("GITHUB_REPO", "xiangyuzeng/lkus-lso-train-dashboard")

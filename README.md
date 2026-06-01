@@ -1,207 +1,132 @@
-# LSO100 在训训练时长看板 · lkus-lso-train-dashboard
+# LSO Training Progress · lkus-lso-train-dashboard
 
-Internal HR-ops board for Luckin Coffee North America (tenant `LKUS`). Tracks
-every associate still training toward the LSO100 certification — their
-cumulative actual clocked-in work hours since hire, against the **112-hour**
-target.
+Internal HR-ops board for Luckin Coffee North America (tenant `LKUS`). Tracks the
+four in-training rosters — **LSO100 / LSO200 / LSO300 / LSO400** — listing every
+associate still working toward each certification and their cumulative actual
+clocked-in training time since hire, against per-level targets.
 
 - Stack: Next.js 14 (App Router) + TypeScript, deployed to Vercel.
-- Pipeline: Python 3.11 (`pymysql` + `boto3` + `requests`), runs on an internal
-  cron host with VPC reach to the production RDS instances.
-- Refresh: hourly. Pipeline pushes one static JSON payload to GitHub, Vercel
-  rebuilds on push, client polls the payload every 5 minutes for early pickup.
-- Theme: light, Luckin navy, Simplified-Chinese-facing.
+- Pipeline: Python 3.11 (`pymysql` + `boto3` + `requests`) on an internal cron
+  host with VPC reach to the production RDS instances.
+- Refresh: at least daily (hourly cron). The pipeline pushes one static JSON
+  payload to GitHub; Vercel rebuilds on push; the client polls the payload every
+  5 minutes for early pickup.
 
-> The client **never** touches MySQL. The only network path between the public
-> Vercel dashboard and the internal databases is the static `public/data.json`
-> payload that the pipeline commits.
-
----
-
-## Data flow
-
-```
-                ┌────────────────────────────────────────────────┐
-                │   Internal VPC (cron host on dbtools or EC2)    │
-                │                                                 │
-                │   ┌────────────┐    SELECT-only    ┌─────────┐  │
-                │   │ collect.py ├───────────────────► RDS:    │  │
-                │   │            │                   │ iEHR    │  │
-                │   │            ◄───────────────────┤         │  │
-                │   │            │                   └─────────┘  │
-                │   │            │    SELECT-only    ┌──────────┐ │
-                │   │            ├───────────────────► RDS:     │ │
-                │   │            │                   │ opemp-   │ │
-                │   │            ◄───────────────────┤ efficien.│ │
-                │   │            │                   └──────────┘ │
-                │   │            │                                │
-                │   │  hours +   │                                │
-                │   │  bands +   │                                │
-                │   │  KPIs      │                                │
-                │   └─────┬──────┘                                │
-                │         │ writes public/data.json               │
-                │         ▼                                       │
-                │   ┌────────────┐    Contents API   ┌─────────┐  │
-                │   │  push_to_  ├───────────────────► GitHub  │  │
-                │   │  github.py │   GET sha →base64 │  repo   │  │
-                │   │            │    PUT (retry 3×) │         │  │
-                │   └────────────┘                   └────┬────┘  │
-                └────────────────────────────────────────┼────────┘
-                                                         │
-                                                         │ webhook
-                                                         ▼
-                                                   ┌─────────────┐
-                                                   │   Vercel    │
-                                                   │   rebuild   │
-                                                   └──────┬──────┘
-                                                          │
-                                                          ▼
-                                          ┌──────────────────────────┐
-                                          │  Static Next.js page     │
-                                          │  fetches ./data.json     │
-                                          │  every 5 min, cache-bust │
-                                          │  → real-age freshness    │
-                                          │     badge + UI render    │
-                                          └──────────────────────────┘
-```
+> The client **never** touches MySQL. The only path between the public Vercel
+> dashboard and the internal databases is the static `public/data.json` payload
+> the pipeline commits.
 
 ---
 
-## Confirmed sources (from live, read-only discovery 2026-05-28)
+## The four levels
 
-| Concern | Server / schema.table | Field(s) | Status |
-|---|---|---|---|
-| Cohort roster | `aws-luckyus-iehr-rw` · `luckyus_iehr.t_ehr_employee` + `t_ehr_employee_post_relation` + `t_ehr_post` + `t_ehr_department` | `emp_no, name, join_date, status, belong_dept_id, post_code, post_name, dept.name (store), dept.parent_code` | ✅ confirmed |
-| LSO100 acquisition (negative filter) | `luckyus_iehr.t_ehr_employee_training_record` | `course_title LIKE '%LSO100%'` | ✅ confirmed (NOT `t_ehr_yxt_certificate`, which holds cert *templates*, not employee acquisitions) |
-| Worked hours | `aws-luckyus-opempefficiency-rw` · `luckyus_opempefficiency.t_attendance` | `effective_hours` (float 7,2), `attendance_date` (DATE), `emp_no`, `tenant` | ✅ confirmed — pre-aggregated daily model |
-| Tenant scope | both schemas | `tenant='LKUS'` | ✅ confirmed (explicit column, no implicit-by-server) |
-| Reporting TZ | `t_attendance.attendance_date` already local-NY date | — | ✅ confirmed (`t_shop_info.time_zone='America/New_York'` for all LKUS stores) |
-| Join key | `emp_no` matches across both schemas | format `US<YYMMDD><seq>`, e.g. `US202505130005` | ✅ confirmed |
-| Store dictionary | `aws-luckyus-opshop-rw` · `luckyus_opshop.t_shop_info` | `shop_name`, 15 LKUS stores + 1 JFK kiosk | ✅ confirmed (used for cross-reference only; the cohort SQL pulls store name from `t_ehr_department`) |
+| Level | Role | In-training = | Metric | Target | yellow / orange / red | LSO Course col |
+|---|---|---|---|---|---|---|
+| LSO100 | Barista | no LSO100 | **hours** | 112h | 72 / 96 / 112 | — |
+| LSO200 | Shift Supervisor | has LSO100, no LSO200 | **days** (h÷8) | 45d | 30 / 35 / 45 | ✓ |
+| LSO300 | Assistant Store Manager | has 100+200, no LSO300 | **days** | 60d | 52 / 55 / 60 | ✓ |
+| LSO400 | Store Manager | has 100+200+300, no LSO400 | **days** | 90d | 75 / 80 / 90 | ✓ |
 
-## Pending sources (rendered "—", flagged in payload)
+Base population = Active + `tenant='LKUS'` + assigned to a store dept
+(`t_ehr_department.type=0`). A row's value is the cumulative `effective_hours`
+from hire to today (hours for LSO100; the same total ÷ 8 expressed as days for
+the higher levels). The heat band is `value >= red → red`, else `>= orange`, else
+`>= yellow`, else neutral.
 
-| Concern | Why pending | How to wire it on |
+Live cohort sizes (confirmed 2026-06-01): **LSO100 = 45, LSO200 = 63, LSO300 = 51,
+LSO400 = 17** across **18** active-staffed stores.
+
+---
+
+## Confirmed sources (live, read-only)
+
+| Concern | Server · schema.table | Field(s) |
 |---|---|---|
-| **所在区域 / region** | `t_shop_info.administrative_area_name`, `locality_name`, `sublocality_name` are NULL for all LKUS stores. `t_ehr_department.parent_code` rolls everyone up to one HQ (`LKUS00000041`), which is not a useful region distinction. | Once HR-ops publishes a store→region map (e.g. "Midtown / Downtown / Uptown / JFK"), add a CSV at `pipeline/config/region_map.csv` keyed on `store_name`, load it in `collect.py::build_payload` and set `row.region` from the lookup. The UI already supports per-region filter chips; flipping the data on is a one-line change. |
-| **Cohort floor** | Cohort (a) currently includes long-tenured store managers without an LSO100 record. Counted live: 198 employees. | If HR-ops wants to scope to recent hires only, switch to cohort (b) (78 trainee-post rows) by running `./refresh.sh COHORT=b`, or add a `join_date >= DATE_SUB(NOW(),INTERVAL X MONTH)` floor in `pipeline/collect.py::COHORT_A_SQL`. |
-| **Open-enrollment cohort (c)** | No enrollment table exists in iEHR. `t_ehr_yxt_user` carries 云学堂 user registration only, no per-course progress. | Wait for the 云学堂 mirror to land a `t_ehr_yxt_enrollment` (or equivalent) before implementing cohort (c). |
+| Roster | `aws-luckyus-iehr-rw` · `t_ehr_employee` + `t_ehr_department` + `t_ehr_employee_post_relation` + `t_ehr_post` | `emp_no, name, join_date, status, dept.name (store), post.name (position)` |
+| **Cert presence** | `luckyus_iehr.t_ehr_employee_qualification_info` + `t_ehr_yxt_certificate` | `cer_id` → level (see map below) |
+| Worked hours | `aws-luckyus-opempefficiency-rw` · `t_attendance` | `effective_hours` (sum since hire), `attendance_date`, `emp_no`, `tenant` |
+| LSO Course | `aws-luckyus-opempefficiency-rw` · `t_working_time_apply` + `t_working_time_apply_relate_emp` | `sub_type` (1/2/3), `apply_name`, `re.emp_no` |
+
+**cer_id → level:** LSO100 `83a7b425…` · LSO200 `35a26709…` · LSO300 `7bab460e…`
+(+ legacy `803c8627…`) · LSO400 `09fe6ae9…`.
+
+**LSO Course (`t_working_time_apply`, `work_type=4`):** `sub_type=1` DUTY_SUPERVISOR →
+"Course for Shift Supervisor" (LSO200) · `sub_type=3` DEPUTY_SHOP_MANAGER →
+"Course for Assistant Store Manager" (LSO300) · `sub_type=2` SHOP_MANAGER →
+"Course for Store Manager" (LSO400). `sub_type=99` (other, incl. Food Hygiene) and
+`work_type=3` (meetings) are ignored. When a trainee has no matching application the
+cell renders **"pending"** — never guessed.
+
+> **Source note:** `t_ehr_employee_training_record` (the table an earlier LSO100-only
+> build filtered on) is **empty for LKUS** — it cannot distinguish levels. Cert
+> acquisitions live in `t_ehr_employee_qualification_info`, which this build uses.
+
+## Pending (rendered "—")
+
+**Region.** All 18 stores roll up to a single HQ parent (`LKUS00000041`); no
+Midtown/Downtown/etc. rollup exists upstream. Region renders `—` and its filter is
+hidden. To wire it on later, add `pipeline/config/region_map.csv` keyed on store
+name and set `row.region` from the lookup in the collector.
 
 ---
 
-## The three refresh paths
-
-### A — pymysql + AWS Secrets Manager on an internal cron host  · **PRIMARY**
-
-```bash
-# crontab.example
-0 * * * * cd /opt/lkus-lso-train-dashboard && ./refresh.sh >> logs/cron.log 2>&1
-```
-
-`refresh.sh` runs `schema_probe → collect.py → validate JSON → push_to_github.py`
-and bails on any failure so no stale or empty payload is ever pushed.
-
-Required env (set in `/etc/profile.d/lkus-lso.sh` or systemd EnvironmentFile):
-
-```bash
-MYSQL_SECRET_NAME=collector/mysql          # AWS Secrets Manager secret name
-AWS_REGION=us-east-1
-IEHR_HOST=<iehr-rds-endpoint>              # optional per-DB host override
-OPEMPEFFICIENCY_HOST=<opemp-rds-endpoint>  # optional per-DB host override
-GITHUB_TOKEN=ghp_xxx                       # repo-scope PAT, never committed
-GITHUB_REPO=xiangyuzeng/lkus-lso-train-dashboard
-GITHUB_BRANCH=main
-GITHUB_FILE_PATH=public/data.json
-```
-
-The Secrets Manager secret payload is the same shape used by the sibling
-`luckin-ops-dashboard` and `luckin-efficiency-dashboard` pipelines:
-
-```json
-{
-  "host":     "...",
-  "port":     3306,
-  "username": "...",
-  "password": "...",
-  "dbname":   "luckyus_iehr"
-}
-```
-
-### B — MCP DB Gateway · ad-hoc only
-
-The MCP DB gateway at `http://10.238.3.43:8080` is what this session used for
-discovery (the `mcp__mcp-db-gateway__mysql_query` tool, server names
-`aws-luckyus-iehr-rw` and `aws-luckyus-opempefficiency-rw`). It speaks the
-MCP SSE protocol — there is no plain-HTTP query endpoint, so it's used from
-Claude Code / a local MCP client rather than a Python script. For an
-out-of-band manual refresh, use path C below.
-
-### C — Scheduled Claude Code agent · fallback
-
-When the cron host is down or the operator only has Claude Code in reach:
-
-```bash
-0 * * * * cd /opt/lkus-lso-train-dashboard && \
-  claude --dangerously-skip-permissions -p "$(cat refresh_prompt.md)" >> logs/cron.log 2>&1
-```
-
-The agent runs the same two queries from `refresh_prompt.md`, rewrites
-`public/data.json` with `meta.source='confirmed'`, and pushes via the GitHub
-Contents API. `GITHUB_TOKEN` is read from the agent's environment.
-
----
-
-## Cohort definition (default = **a** per §6 of the build spec)
-
-> Active + `tenant='LKUS'` + assigned to a store dept (`t_ehr_department.type=0`) +
-> no LSO100 row in `t_ehr_employee_training_record`.
-
-Live cohort sizes (confirmed 2026-05-28):
-
-- (a) 198 employees ← **default**
-- (b) Active + LKUS + primary post in (95, 96, 97, 98) trainee codes + no LSO100 → 78 employees
-- (c) Open enrollment — not currently buildable; no enrollment table exists in iEHR
-
-To switch: set `COHORT=b` in the cron env, or pass `--cohort b` to `collect.py`.
-
----
-
-## Payload shape (`public/data.json`)
+## Payload shape (`public/data.json`, schema v2)
 
 ```jsonc
 {
   "meta": {
-    "board_id":      "LCNA-HR-LSO-TRAIN-2026",
-    "generated_at":  "2026-05-28T22:30:00.000Z",   // ISO UTC
-    "generated_by":  "collect.py",
-    "tz":            "America/New_York",
-    "target_hours":  112,
-    "thresholds":    { "yellow": 72, "orange": 96, "red": 112 },
-    "cohort_def":    "a",
-    "source":        "confirmed",                  // or "seed"
-    "attend_source": "luckyus_opempefficiency.t_attendance"
+    "board_id": "LCNA-HR-LSO-TRAIN-2026", "schema_version": 2,
+    "generated_at": "…Z", "generated_by": "collect.py", "tz": "America/New_York",
+    "source": "confirmed",                       // or "seed"
+    "base_def": "active_store", "store_count": 18, "regions": ["—"],
+    "cert_source": "luckyus_iehr.t_ehr_employee_qualification_info",
+    "attend_source": "luckyus_opempefficiency.t_attendance",
+    "course_source": "luckyus_opempefficiency.t_working_time_apply"
   },
-  "kpis":    { "total": 198, "ge72": 92, "ge96": 55, "ge112": 22, "target_rate": 0.1111, "avg": 65.4, "median": 58.2 },
-  "regions": ["—"],                                // until a region map is wired
-  "rows": [
+  "levels": [
     {
-      "full_name":   "Yaqing Zuo",
-      "employee_no": "US202505130005",
-      "store":       "33rd & 10th",
-      "region":      "—",
-      "position":    "Store Manager",
-      "hire_date":   "2026-02-12",
-      "hours":       168.5,
-      "band":        "red",                        // none | yellow | orange | red
-      "status":      "Active"                      // or "Separated"
+      "key": "LSO200", "title": "Shift Supervisor", "unit": "days", "target": 45,
+      "thresholds": { "yellow": 30, "orange": 35, "red": 45 },
+      "in_training_def": "Holds LSO100, no LSO200", "has_course_col": true,
+      "kpis": { "total": 63, "ge_yellow": 60, "ge_orange": 57, "ge_red": 48, "target_rate": 0.76, "avg": 70.8, "median": 0 },
+      "rows": [
+        {
+          "full_name": "…", "employee_no": "US…", "store": "21st & 3rd", "region": "—",
+          "position": "Barista", "hire_date": "2025-06-27",
+          "value": 199.5, "band": "red",
+          "lso_course": "Course for Shift Supervisor", "lso_course_date": "2026-04-15",
+          "status": "Active"
+        }
+      ]
     }
+    // LSO100 (unit hours, no course col), LSO300, LSO400 …
   ]
 }
 ```
 
-Rows are sorted by `hours` descending. The collector computes `band` from
-`hours` using the same thresholds the UI uses for filter chips and cell colour,
-so the two never disagree.
+Rows are sorted by `value` descending. `lso_course` is `null` for LSO100,
+`"pending"` when unresolved, else the level's course label.
+
+---
+
+## Refresh paths
+
+### A — `pymysql` + AWS Secrets Manager on the cron host · **PRIMARY**
+
+```bash
+0 * * * * cd /opt/lkus-lso-train-dashboard && ./refresh.sh >> logs/cron.log 2>&1
+```
+
+`refresh.sh` runs `schema_probe → collect.py → validate → push_to_github` and
+bails on any failure so no stale/empty payload is pushed. Required env:
+`MYSQL_SECRET_NAME=collector/mysql`, `AWS_REGION=us-east-1`,
+optional `IEHR_HOST` / `OPEMPEFFICIENCY_HOST` per-DB overrides, `GITHUB_TOKEN`.
+
+### B / C — MCP DB Gateway via a Claude Code agent · fallback
+
+When the cron host is down, run `refresh_prompt.md` through a scheduled Claude Code
+agent: three read-only gateway queries → `pipeline/bootstrap_from_mcp.py` →
+`public/data.json` → push. See `refresh_prompt.md`.
 
 ---
 
@@ -209,78 +134,52 @@ so the two never disagree.
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000 — renders against public/data.json
-npm run build    # production build; final acceptance gate
+npm run dev        # http://localhost:3000 — renders against public/data.json
+npm run build      # production build; final acceptance gate
+npm run typecheck  # tsc --noEmit
+
+python -m pipeline.make_seed   # regenerate the PII-free SEED payload (zero DB)
 ```
 
-The shipped `public/data.json` is a clearly-labeled **SEED** payload (22
-realistic rows spanning all four heat bands). The `SeedBadge` chip stays
-visible until the pipeline overwrites the file with `meta.source='confirmed'`.
-
-To preview the stale state, change `meta.generated_at` to a timestamp older
-than 90 minutes — the whole board greys out via the `.board--stale` class.
+The repo ships a clearly-labelled payload; the `SeedBadge` chip stays visible
+while `meta.source==='seed'`. To preview the stale state, set `meta.generated_at`
+older than 90 minutes — the board greys out via `.board--stale`.
 
 ---
 
-## Acceptance gates (run before declaring done)
+## Acceptance gates
 
-1. `npm run build` → zero TypeScript / lint errors, zero console warnings.
-2. `npm run dev` → SeedBadge visible, FreshnessBadge shows "刚刚", KPI row + table populated, search & chip filters work, default sort is 训练时长 desc.
-3. Heat-band check: rows with hours `70.0 / 80.0 / 100.0 / 120.0` render as `none / yellow / orange / red`.
-4. Stale check: `meta.generated_at` set 2h ago → board greys out, badge reads "2 小时前".
-5. Pipeline dry-run (internal host): `python3 -m pipeline.collect --cohort a` writes a valid payload with `meta.source='confirmed'` and `len(rows) > 0`.
-6. Push test: `python3 -m pipeline.sender.push_to_github` returns 0 against a throwaway path, retries on simulated 409.
-7. Bail-on-failure: simulate a broken collector — `refresh.sh` exits non-zero and does NOT call `push_to_github.py`.
+1. `npm run typecheck` and `npm run build` → zero errors.
+2. `npm run dev` → four tabs switch; each level's KPI row + table populate;
+   LSO100 shows hours, LSO200/300/400 show days + the LSO Course column with
+   "pending" where unresolved; search / band-filter / sort work; all English.
+3. Heat-band check (per level): LSO200 values 25 / 32 / 40 / 50 d → none / yellow / orange / red.
+4. Stale check: `meta.generated_at` 2 h ago → board greys, badge reads "2 hr ago".
+5. Pipeline dry-run (host): `python -m pipeline.collect` writes a valid 4-level
+   payload with `meta.source='confirmed'` and rows in each non-empty level.
 
 ---
 
 ## File map
 
 ```
-app/                    Next.js App Router
-  layout.tsx
-  page.tsx              Header + FreshnessBadge + KpiRow + TrainingTable
-  globals.css           CSS variables + .board--stale gray treatment
-lib/
-  tokens.ts             palette + space + radius + shadow + bandStyle
-  freshness.ts          freshness(generatedAt, staleMin=90), formatAge(mins)
-  types.ts              Payload, PayloadMeta, PayloadKpis, PayloadRow, Band
-  payload.ts            usePayload() — fetch ./data.json?ts=<ms> every 5 min
-components/
-  FreshnessBadge.tsx    Real-age pill, gold when stale, no fake countdown
-  SeedBadge.tsx         Amber chip while meta.source === 'seed'
-  KpiCard.tsx           One KPI tile w/ accent rail
-  KpiRow.tsx            Six tiles per §3b
-  HoursCell.tsx         1-dp number + 0→112 progress bar, heat-band coloured
-  TrainingTable.tsx     Search + band chips + region chips + sortable + sticky/frozen
-public/
-  data.json             SEED initially; overwritten by pipeline
+app/            layout.tsx · page.tsx (tabs + KPI + table) · globals.css
+lib/            types.ts (v2 payload) · payload.ts · freshness.ts · tokens.ts
+components/     LevelTabs · KpiRow/KpiCard · TrainingTable · ValueCell · FreshnessBadge · SeedBadge
+public/         data.json
 pipeline/
-  collect.py            §5/§6 SQL → cumulative hours + KPIs + bands → public/data.json
-  schema_probe.py       CHECKPOINT-1/2 drift detection → pipeline/schema_map.json
-  sender/
-    push_to_github.py   Contents API PUT, 3 retries 2/4/8 s
-  config/
-    settings.py         Secrets Manager loader + per-DB host override + assert_read_only
-  requirements.txt      pymysql, boto3, requests
-refresh.sh              collect → validate → push; bails on any failure
-refresh_prompt.md       Mode-C fallback prompt for Claude Code agent
-crontab.example         The hourly cron line, with env var documentation
-vercel.json             cleanUrls + security headers + Cache-Control max-age=60 on /data.json
-.github/workflows/
-  refresh.yml           workflow_dispatch fallback (real cron runs on internal host)
+  collect.py            4-level SQL → value + bands + course + KPIs → public/data.json
+  make_seed.py          synthetic PII-free seed (zero DB)
+  bootstrap_from_mcp.py Mode-B/C assembler from gateway JSON results
+  schema_probe.py       drift detection over the source tables
+  sender/push_to_github.py
+  config/settings.py
+refresh.sh · refresh_prompt.md · crontab.example · vercel.json
 ```
-
----
 
 ## Safety + read-only guarantees
 
-- All SQL is constructed in `pipeline/collect.py` and `pipeline/schema_probe.py`.
-- Every SQL string is passed through `assert_read_only(sql)` before execute,
-  which rejects any string containing `insert / update / delete / drop /
-  truncate / replace / alter / grant / revoke / create`.
-- `GITHUB_TOKEN` is read from the environment — never committed and never
-  written to disk by the pipeline.
-- The MySQL secret is fetched from AWS Secrets Manager at run-time only;
-  the secret name itself must be passed in via `MYSQL_SECRET_NAME` and has no
-  default, so a misconfigured host cannot accidentally use a stale fallback.
+- All SQL is built in `pipeline/*.py`; every string passes `assert_read_only()`,
+  which rejects `insert/update/delete/drop/truncate/replace/alter/grant/revoke/create`.
+- `GITHUB_TOKEN` and the MySQL secret are read from the environment / Secrets
+  Manager at run time — never committed.

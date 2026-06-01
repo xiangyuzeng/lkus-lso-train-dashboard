@@ -17,12 +17,18 @@ logger = logging.getLogger(__name__)
 
 # (db, table) → minimum columns we must see
 REQUIRED: dict[tuple[str, str], list[str]] = {
-    (IEHR_DB, "t_ehr_employee"):                 ["emp_no", "name", "join_date", "status", "tenant", "belong_dept_id"],
-    (IEHR_DB, "t_ehr_employee_post_relation"):   ["emp_no", "post_id", "relation_type", "tenant"],
-    (IEHR_DB, "t_ehr_post"):                     ["id", "code", "name", "tenant"],
-    (IEHR_DB, "t_ehr_department"):               ["id", "name", "type", "tenant"],
-    (IEHR_DB, "t_ehr_employee_training_record"): ["emp_no", "course_title", "tenant"],
-    (OPEMPEFFICIENCY_DB, "t_attendance"):        ["emp_no", "attendance_date", "effective_hours", "tenant"],
+    (IEHR_DB, "t_ehr_employee"):                     ["emp_no", "name", "join_date", "status", "tenant", "belong_dept_id"],
+    (IEHR_DB, "t_ehr_employee_post_relation"):       ["emp_no", "post_id", "relation_type", "tenant"],
+    (IEHR_DB, "t_ehr_post"):                         ["id", "code", "name", "tenant"],
+    (IEHR_DB, "t_ehr_department"):                   ["id", "name", "type", "tenant"],
+    # Cert acquisitions live here (cer_id → level), NOT t_ehr_employee_training_record
+    # which is empty for LKUS.
+    (IEHR_DB, "t_ehr_employee_qualification_info"):  ["emp_no", "cer_id"],
+    (IEHR_DB, "t_ehr_yxt_certificate"):              ["cer_id", "qualification_certificate"],
+    (OPEMPEFFICIENCY_DB, "t_attendance"):            ["emp_no", "attendance_date", "effective_hours", "tenant"],
+    # "Working Hour Application" — source of the LSO Course column.
+    (OPEMPEFFICIENCY_DB, "t_working_time_apply"):    ["id", "tenant", "sub_type", "work_type", "apply_name", "deleted"],
+    (OPEMPEFFICIENCY_DB, "t_working_time_apply_relate_emp"): ["apply_id", "emp_no", "tenant"],
 }
 
 

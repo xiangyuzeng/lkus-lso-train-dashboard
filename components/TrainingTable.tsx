@@ -1,36 +1,34 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { PayloadRow } from '@/lib/types';
-import { palette, radius, shadow } from '@/lib/tokens';
-import { HoursCell } from './HoursCell';
+import type { Level, PayloadRow } from '@/lib/types';
+import { palette, radius, shadow, unitSuffix } from '@/lib/tokens';
+import { ValueCell } from './ValueCell';
 
 interface Props {
-  rows: PayloadRow[];
+  level: Level;
   regions: string[];
-  target: number;
-  thresholds: { yellow: number; orange: number; red: number };
 }
 
-type SortKey = 'full_name' | 'employee_no' | 'store' | 'region' | 'position' | 'hire_date' | 'hours';
+type SortKey =
+  | 'full_name'
+  | 'employee_no'
+  | 'store'
+  | 'region'
+  | 'position'
+  | 'hire_date'
+  | 'value'
+  | 'lso_course';
 type SortDir = 'asc' | 'desc';
-type BandFilter = 'all' | 'lt72' | 'ge72' | 'ge96' | 'ge112';
+type BandFilter = 'all' | 'lt_y' | 'ge_y' | 'ge_o' | 'ge_r';
 
-const BAND_OPTIONS: { key: BandFilter; label: string }[] = [
-  { key: 'all',   label: '全部' },
-  { key: 'lt72',  label: '<72h' },
-  { key: 'ge72',  label: '≥72h' },
-  { key: 'ge96',  label: '≥96h' },
-  { key: 'ge112', label: '≥112h' },
-];
-
-function bandMatches(filter: BandFilter, row: PayloadRow, t: Props['thresholds']): boolean {
+function bandMatches(filter: BandFilter, row: PayloadRow, t: Level['thresholds']): boolean {
   switch (filter) {
-    case 'all':   return true;
-    case 'lt72':  return row.hours < t.yellow;
-    case 'ge72':  return row.hours >= t.yellow;
-    case 'ge96':  return row.hours >= t.orange;
-    case 'ge112': return row.hours >= t.red;
+    case 'all':  return true;
+    case 'lt_y': return row.value < t.yellow;
+    case 'ge_y': return row.value >= t.yellow;
+    case 'ge_o': return row.value >= t.orange;
+    case 'ge_r': return row.value >= t.red;
   }
 }
 
@@ -39,43 +37,59 @@ function compare(a: PayloadRow, b: PayloadRow, key: SortKey, dir: SortDir): numb
   const vb = b[key];
   let cmp = 0;
   if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
-  else cmp = String(va).localeCompare(String(vb), 'zh-Hans');
+  else cmp = String(va ?? '').localeCompare(String(vb ?? ''), 'en');
   return dir === 'asc' ? cmp : -cmp;
 }
 
-export function TrainingTable({ rows, regions, target, thresholds }: Props) {
+export function TrainingTable({ level, regions }: Props) {
+  const { rows, unit, target, thresholds, has_course_col } = level;
+  const u = unitSuffix(unit);
+
   const [search, setSearch] = useState('');
   const [bandFilter, setBandFilter] = useState<BandFilter>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('hours');
+  const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const bandOptions: { key: BandFilter; label: string }[] = [
+    { key: 'all',  label: 'All' },
+    { key: 'lt_y', label: `< ${thresholds.yellow}${u}` },
+    { key: 'ge_y', label: `≥ ${thresholds.yellow}${u}` },
+    { key: 'ge_o', label: `≥ ${thresholds.orange}${u}` },
+    { key: 'ge_r', label: `≥ ${thresholds.red}${u}` },
+  ];
+
+  const hasRegions = regions.some((r) => r && r !== '—');
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const result = rows.filter((r) => {
       if (!bandMatches(bandFilter, r, thresholds)) return false;
-      if (regionFilter !== 'all' && r.region !== regionFilter) return false;
+      if (hasRegions && regionFilter !== 'all' && r.region !== regionFilter) return false;
       if (q) {
-        const hay = `${r.full_name} ${r.employee_no} ${r.store} ${r.region} ${r.position}`.toLowerCase();
+        const hay =
+          `${r.full_name} ${r.employee_no} ${r.store} ${r.region} ${r.position} ${r.lso_course ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
     result.sort((a, b) => compare(a, b, sortKey, sortDir));
     return result;
-  }, [rows, search, bandFilter, regionFilter, sortKey, sortDir, thresholds]);
+  }, [rows, search, bandFilter, regionFilter, sortKey, sortDir, thresholds, hasRegions]);
 
   const onSort = (key: SortKey) => {
     if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDir(key === 'hours' ? 'desc' : 'asc');
+      setSortDir(key === 'value' ? 'desc' : 'asc');
     }
   };
 
-  const sortIndicator = (key: SortKey) =>
-    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+
+  const valueHeader = unit === 'hours' ? 'Training Hours' : 'Training Days';
+  const colCount = 8 + (has_course_col ? 1 : 0);
 
   return (
     <div
@@ -101,7 +115,7 @@ export function TrainingTable({ rows, regions, target, thresholds }: Props) {
       >
         <input
           type="search"
-          placeholder="搜索 姓名 / 工号 / 门店 / 区域 / 职位"
+          placeholder="Search name / ID / store / position / course"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -116,7 +130,7 @@ export function TrainingTable({ rows, regions, target, thresholds }: Props) {
           }}
         />
         <ChipRow>
-          {BAND_OPTIONS.map((o) => (
+          {bandOptions.map((o) => (
             <Chip
               key={o.key}
               active={bandFilter === o.key}
@@ -125,21 +139,16 @@ export function TrainingTable({ rows, regions, target, thresholds }: Props) {
             />
           ))}
         </ChipRow>
-        <ChipRow>
-          <Chip
-            active={regionFilter === 'all'}
-            onClick={() => setRegionFilter('all')}
-            label="区域 · 全部"
-          />
-          {regions.map((r) => (
-            <Chip
-              key={r}
-              active={regionFilter === r}
-              onClick={() => setRegionFilter(r)}
-              label={r}
-            />
-          ))}
-        </ChipRow>
+        {hasRegions && (
+          <ChipRow>
+            <Chip active={regionFilter === 'all'} onClick={() => setRegionFilter('all')} label="Region · All" />
+            {regions
+              .filter((r) => r && r !== '—')
+              .map((r) => (
+                <Chip key={r} active={regionFilter === r} onClick={() => setRegionFilter(r)} label={r} />
+              ))}
+          </ChipRow>
+        )}
         <span
           style={{
             marginLeft: 'auto',
@@ -148,7 +157,7 @@ export function TrainingTable({ rows, regions, target, thresholds }: Props) {
             whiteSpace: 'nowrap',
           }}
         >
-          共 <strong style={{ color: palette.text }}>{filtered.length}</strong> / {rows.length} 行
+          <strong style={{ color: palette.text }}>{filtered.length}</strong> / {rows.length} shown
         </span>
       </div>
 
@@ -165,44 +174,49 @@ export function TrainingTable({ rows, regions, target, thresholds }: Props) {
           <thead>
             <tr>
               <Th sticky firstColumn onClick={() => onSort('full_name')}>
-                姓名{sortIndicator('full_name')}
+                Name{sortIndicator('full_name')}
               </Th>
               <Th sticky onClick={() => onSort('employee_no')}>
-                工号{sortIndicator('employee_no')}
+                Employee ID{sortIndicator('employee_no')}
               </Th>
               <Th sticky onClick={() => onSort('store')}>
-                所在门店{sortIndicator('store')}
+                Store{sortIndicator('store')}
               </Th>
               <Th sticky onClick={() => onSort('region')}>
-                所在区域{sortIndicator('region')}
+                Region{sortIndicator('region')}
               </Th>
               <Th sticky onClick={() => onSort('position')}>
-                职位{sortIndicator('position')}
+                Position{sortIndicator('position')}
               </Th>
               <Th sticky onClick={() => onSort('hire_date')}>
-                入职日期{sortIndicator('hire_date')}
+                Hire Date{sortIndicator('hire_date')}
               </Th>
-              <Th sticky onClick={() => onSort('hours')} align="right">
-                训练时长(小时){sortIndicator('hours')}
+              <Th sticky onClick={() => onSort('value')} align="right">
+                {valueHeader}{sortIndicator('value')}
               </Th>
-              <Th sticky>状态</Th>
+              {has_course_col && (
+                <Th sticky onClick={() => onSort('lso_course')}>
+                  LSO Course{sortIndicator('lso_course')}
+                </Th>
+              )}
+              <Th sticky>Status</Th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <Tr key={r.employee_no} row={r} target={target} />
+              <Tr key={r.employee_no} row={r} target={target} unit={unit} showCourse={has_course_col} />
             ))}
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={colCount}
                   style={{
                     padding: '40px 16px',
                     textAlign: 'center',
                     color: palette.textMuted,
                   }}
                 >
-                  当前筛选无匹配数据
+                  No rows match the current filters
                 </td>
               </tr>
             )}
@@ -279,7 +293,17 @@ function Th({
   );
 }
 
-function Tr({ row, target }: { row: PayloadRow; target: number }) {
+function Tr({
+  row,
+  target,
+  unit,
+  showCourse,
+}: {
+  row: PayloadRow;
+  target: number;
+  unit: Level['unit'];
+  showCourse: boolean;
+}) {
   return (
     <tr>
       <Td firstColumn>
@@ -292,17 +316,20 @@ function Tr({ row, target }: { row: PayloadRow; target: number }) {
       </Td>
       <Td>{row.store}</Td>
       <Td>
-        <span style={{ color: row.region === '—' ? palette.textMuted : palette.text }}>
-          {row.region}
-        </span>
+        <span style={{ color: row.region === '—' ? palette.textMuted : palette.text }}>{row.region}</span>
       </Td>
       <Td>{row.position}</Td>
       <Td>
         <span style={{ color: palette.textMuted }}>{row.hire_date}</span>
       </Td>
       <Td align="right">
-        <HoursCell hours={row.hours} band={row.band} target={target} />
+        <ValueCell value={row.value} band={row.band} target={target} unit={unit} />
       </Td>
+      {showCourse && (
+        <Td>
+          <CourseCell course={row.lso_course} date={row.lso_course_date} />
+        </Td>
+      )}
       <Td>
         <StatusChip status={row.status} />
       </Td>
@@ -338,6 +365,19 @@ function Td({
   );
 }
 
+function CourseCell({ course, date }: { course: string | null; date: string | null }) {
+  const pending = !course || course === 'pending';
+  if (pending) {
+    return <span style={{ color: palette.textPlaceholder, fontStyle: 'italic' }}>pending</span>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+      <span>{course}</span>
+      {date && <span style={{ fontSize: '11px', color: palette.textMuted }}>{date}</span>}
+    </div>
+  );
+}
+
 function StatusChip({ status }: { status: PayloadRow['status'] }) {
   const active = status === 'Active';
   return (
@@ -352,8 +392,7 @@ function StatusChip({ status }: { status: PayloadRow['status'] }) {
         fontWeight: 500,
       }}
     >
-      {active ? '在职' : '离职'}
+      {active ? 'Active' : 'Separated'}
     </span>
   );
 }
-

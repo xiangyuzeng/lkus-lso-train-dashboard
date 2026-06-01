@@ -63,7 +63,7 @@ export const shadow = {
 
 export const type = {
   family:
-    '"Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif',
+    'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   sizeKpiValue: '28px',
   sizeKpiTitle: '13px',
   sizeBody: '14px',
@@ -77,9 +77,12 @@ export const type = {
 
 export type Band = 'none' | 'yellow' | 'orange' | 'red';
 
-export const bandStyle: Record<Band, { fg: string; bg: string; barFill: string; label: string }> = {
-  none:   { fg: palette.text,    bg: palette.surfaceAlt, barFill: palette.blueSoft, label: '<72' },
-  yellow: { fg: palette.gold,    bg: palette.goldBg,     barFill: palette.gold,     label: '≥72' },
-  orange: { fg: palette.orange,  bg: palette.orangeBg,   barFill: palette.orange,   label: '≥96' },
-  red:    { fg: palette.danger,  bg: palette.dangerBg,   barFill: palette.danger,   label: '≥112' },
+export const bandStyle: Record<Band, { fg: string; bg: string; barFill: string }> = {
+  none:   { fg: palette.text,    bg: palette.surfaceAlt, barFill: palette.blueSoft },
+  yellow: { fg: palette.gold,    bg: palette.goldBg,     barFill: palette.gold     },
+  orange: { fg: palette.orange,  bg: palette.orangeBg,   barFill: palette.orange   },
+  red:    { fg: palette.danger,  bg: palette.dangerBg,   barFill: palette.danger   },
 };
+
+// Unit suffix for the value column / KPIs: hours → "h", days → "d".
+export const unitSuffix = (unit: 'hours' | 'days'): string => (unit === 'hours' ? 'h' : 'd');

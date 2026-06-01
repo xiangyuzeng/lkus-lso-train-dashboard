@@ -1,15 +1,19 @@
-import type { Band } from '@/lib/types';
-import { bandStyle, palette, radius } from '@/lib/tokens';
+import type { Band, Unit } from '@/lib/types';
+import { bandStyle, palette, radius, unitSuffix } from '@/lib/tokens';
 
 interface Props {
-  hours: number;
+  value: number;
   band: Band;
   target: number;
+  unit: Unit;
 }
 
-export function HoursCell({ hours, band, target }: Props) {
+// Unit-aware training cell: hours for LSO100, days for LSO200/300/400.
+// Progress bar fills value/target, capped at 100%, coloured by heat band.
+export function ValueCell({ value, band, target, unit }: Props) {
   const style = bandStyle[band];
-  const pct = Math.min(100, (hours / target) * 100);
+  const pct = Math.min(100, (value / target) * 100);
+  const suffix = unitSuffix(unit);
 
   return (
     <div
@@ -25,8 +29,12 @@ export function HoursCell({ hours, band, target }: Props) {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontWeight: 600, fontSize: '14px' }}>{hours.toFixed(1)} h</span>
-        <span style={{ fontSize: '11px', color: palette.textMuted }}>/ {target}</span>
+        <span style={{ fontWeight: 600, fontSize: '14px' }}>
+          {value.toFixed(1)} {suffix}
+        </span>
+        <span style={{ fontSize: '11px', color: palette.textMuted }}>
+          / {target} {suffix}
+        </span>
       </div>
       <div
         aria-hidden

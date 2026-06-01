@@ -26,7 +26,7 @@ export function FreshnessBadge({ generatedAt, staleMin }: Props) {
     <div
       role="status"
       aria-live="polite"
-      title={`数据生成于 ${generatedDisplay}`}
+      title={`Data generated ${generatedDisplay}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -50,8 +50,8 @@ export function FreshnessBadge({ generatedAt, staleMin }: Props) {
           boxShadow: f.isStale ? 'none' : `0 0 0 3px ${palette.blueSoft}`,
         }}
       />
-      <span style={{ fontWeight: 500 }}>数据更新于 {formatAge(f.ageMinutes)}</span>
-      {f.isStale && <span style={{ fontSize: '12px' }}>· 超 90 分钟未刷新</span>}
+      <span style={{ fontWeight: 500 }}>Updated {formatAge(f.ageMinutes)}</span>
+      {f.isStale && <span style={{ fontSize: '12px' }}>· no refresh in 90+ min</span>}
     </div>
   );
 }

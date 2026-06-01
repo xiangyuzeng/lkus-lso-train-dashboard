@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Payload } from './types';
 
 const DATA_URL = './data.json';
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min — pipeline pushes hourly; UI re-pulls for early pickup
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 min — pipeline pushes ≥ daily; UI re-pulls for early pickup
 
 export type DataStatus = 'loading' | 'ready' | 'error';
 
@@ -15,16 +15,16 @@ export interface DataState {
 }
 
 async function fetchPayload(): Promise<Payload> {
-  // Cache-bust per §7: the file behind ./data.json gets overwritten by the
-  // pipeline push, but Vercel's CDN + the browser cache otherwise hide it.
+  // Cache-bust: the file behind ./data.json gets overwritten by the pipeline
+  // push, but Vercel's CDN + the browser cache otherwise hide it.
   const url = `${DATA_URL}?ts=${Date.now()}`;
   const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status}`);
   }
   const data = (await resp.json()) as Payload;
-  if (!data?.meta?.generated_at || !Array.isArray(data.rows)) {
-    throw new Error('payload missing required fields');
+  if (!data?.meta?.generated_at || !Array.isArray(data.levels) || data.levels.length === 0) {
+    throw new Error('payload missing required fields (meta.generated_at / levels[])');
   }
   return data;
 }
@@ -59,10 +59,4 @@ export function usePayload(): DataState {
   }, []);
 
   return state;
-}
-
-export function getDataStatus(payload: Payload | null): DataStatus {
-  if (!payload) return 'loading';
-  if (!payload.meta?.generated_at) return 'error';
-  return 'ready';
 }

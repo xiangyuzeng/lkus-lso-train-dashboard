@@ -16,7 +16,7 @@ export function SeedBadge() {
         letterSpacing: '0.02em',
       }}
     >
-      种子数据 (SEED) · 尚未接入真实打卡
+      SEED DATA · not yet wired to live attendance
     </span>
   );
 }
